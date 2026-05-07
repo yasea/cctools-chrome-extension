@@ -1,0 +1,972 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CCTools</title>
+  <style>
+    :root {
+      --bg: #f4f4f5;
+      --surface: #ffffff;
+      --text: #18181b;
+      --text-muted: #71717a;
+      --border: #e4e4e7;
+      --accent: #0d9488;
+      --accent-hover: #0f766e;
+      --accent-soft: #ccfbf1;
+      --danger: #dc2626;
+      --danger-soft: #fef2f2;
+      --danger-border: #fca5a5;
+      /* 智能填充 / 高亮区专用 */
+      --tint-bg: #f0fdf9;
+      --tint-border: #a7f3d0;
+      --tint-ring: #6ee7b7;
+      /* 焦点环 */
+      --focus-sm: 0 0 0 2px rgba(13, 148, 136, 0.16);
+      --focus-md: 0 0 0 3px rgba(13, 148, 136, 0.12);
+      /* 通用 */
+      --radius: 12px;
+      --radius-sm: 8px;
+      --shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+      --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.08);
+      --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+      --mono: ui-monospace, "Cascadia Code", "Consolas", monospace;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      width: 720px;
+      min-height: 520px;
+      font-family: var(--font);
+      font-size: 14px;
+      color: var(--text);
+      background: var(--bg);
+      line-height: 1.5;
+    }
+
+    .app { display: flex; flex-direction: column; min-height: 100vh; }
+
+    /* ── Header ─────────────────────────────── */
+    .app-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 13px 18px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      box-shadow: var(--shadow);
+    }
+
+    .app-brand { display: flex; align-items: baseline; gap: 10px; }
+
+    .app-brand strong {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+    }
+
+    .app-brand span {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-muted);
+      padding: 2px 8px;
+      background: var(--bg);
+      border-radius: 999px;
+    }
+
+    .link-quiet {
+      font-size: 12px;
+      color: var(--text-muted);
+      text-decoration: none;
+      padding: 5px 10px;
+      border-radius: var(--radius-sm);
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .link-quiet:hover { background: var(--bg); color: var(--text); }
+
+    /* ── 智能填充条 ──────────────────────────── */
+    .smart-fill-bar {
+      margin: 10px 18px;
+      padding: 9px 14px 9px 16px;
+      background: var(--tint-bg);
+      border: 1px solid var(--tint-border);
+      border-left: 3px solid var(--accent);
+      border-radius: var(--radius-sm);
+      box-shadow: 0 1px 4px rgba(13, 148, 136, 0.07);
+    }
+
+    .smart-fill-bar[hidden] { display: none !important; }
+
+    .smart-fill-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .smart-fill-badge {
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: 0.07em;
+      color: #fff;
+      background: var(--accent);
+      padding: 4px 11px;
+      border-radius: 999px;
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+
+    .smart-fill-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      min-width: 0;
+      justify-content: flex-end;
+    }
+
+    .smart-fill-select {
+      flex: 1;
+      min-width: 100px;
+      max-width: 380px;
+      height: 34px;
+      padding: 0 10px;
+      font-size: 12.5px;
+      font-family: inherit;
+      color: var(--text);
+      background: var(--surface);
+      border: 1px solid var(--tint-border);
+      border-radius: 7px;
+      cursor: pointer;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      appearance: auto;
+    }
+
+    .smart-fill-select:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: var(--focus-sm);
+    }
+
+    .smart-fill-btn {
+      height: 34px;
+      padding: 0 16px;
+      font-size: 12.5px;
+      font-weight: 600;
+      font-family: inherit;
+      color: #fff;
+      background: var(--accent);
+      border: none;
+      border-radius: 7px;
+      cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: background 0.15s, box-shadow 0.15s;
+    }
+
+    .smart-fill-btn:hover { background: var(--accent-hover); }
+
+    .smart-fill-btn:active { box-shadow: var(--focus-sm); }
+
+    .smart-fill-btn-ghost {
+      color: var(--accent);
+      background: var(--surface);
+      border: 1px solid var(--tint-ring);
+    }
+
+    .smart-fill-btn-ghost:hover {
+      background: var(--accent-soft);
+      border-color: var(--accent);
+      color: var(--accent-hover);
+    }
+
+    /* ── 智能填充自定义下拉 ──────────────────── */
+    .sf-dropdown {
+      position: relative;
+      flex: 1;
+      min-width: 0;
+      max-width: 380px;
+    }
+    .sf-trigger {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 7px;
+      width: 100%;
+      height: 34px;
+      padding: 0 10px 0 12px;
+      background: var(--surface);
+      border: 1px solid var(--tint-border);
+      border-radius: 7px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 12.5px;
+      color: var(--text);
+      text-align: left;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .sf-trigger:hover { border-color: var(--accent); }
+    .sf-trigger:focus { outline: none; border-color: var(--accent); box-shadow: var(--focus-sm); }
+    .sf-dropdown[aria-expanded="true"] .sf-trigger {
+      border-color: var(--accent);
+      box-shadow: var(--focus-sm);
+    }
+    .sf-trigger-label {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .sf-caret {
+      flex-shrink: 0;
+      color: var(--text-muted);
+      transition: transform 0.18s;
+    }
+    .sf-dropdown[aria-expanded="true"] .sf-caret { transform: rotate(180deg); }
+    .sf-panel {
+      display: none;
+      position: absolute;
+      top: calc(100% + 5px);
+      left: 0;
+      right: 0;
+      background: var(--surface);
+      border: 1px solid var(--tint-border);
+      border-radius: var(--radius-sm);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.13), 0 2px 8px rgba(13,148,136,0.07);
+      list-style: none;
+      margin: 0;
+      padding: 4px;
+      max-height: 260px;
+      overflow-y: auto;
+      z-index: 200;
+    }
+    .sf-dropdown[aria-expanded="true"] .sf-panel { display: block; }
+    .sf-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 9px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.1s;
+      min-width: 0;
+    }
+    .sf-item:hover { background: var(--tint-bg); }
+    .sf-item.sf-selected { background: var(--accent-soft); }
+    .sf-item-dot {
+      flex-shrink: 0;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      opacity: 0;
+      margin-top: 1px;
+    }
+    .sf-item:first-child .sf-item-dot { opacity: 1; }
+    .sf-item-info {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+    .sf-item-name {
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 1.4;
+    }
+    .sf-item-issuer {
+      font-size: 11px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 1.3;
+    }
+    .sf-item-check {
+      flex-shrink: 0;
+      width: 14px;
+      height: 14px;
+      color: var(--accent);
+      opacity: 0;
+    }
+    .sf-item.sf-selected .sf-item-check { opacity: 1; }
+
+    /* ── Tabs ─────────────────────────────────── */
+    .app-tabs {
+      display: flex;
+      gap: 6px;
+      padding: 10px 18px 0;
+      background: var(--bg);
+    }
+
+    .app-tab {
+      flex: 1;
+      border: none;
+      padding: 10px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      font-family: inherit;
+      color: var(--text-muted);
+      background: transparent;
+      border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+      cursor: pointer;
+      transition: color 0.15s, background 0.15s;
+    }
+
+    .app-tab:hover { color: var(--text); background: rgba(255,255,255,0.65); }
+
+    .app-tab.is-active {
+      color: var(--accent);
+      background: var(--surface);
+      box-shadow: 0 -1px 0 var(--surface);
+    }
+
+    /* hide inactive pane (override display:flex) */
+    .app-pane[hidden] { display: none !important; }
+
+    .app-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      margin: 0 18px 18px;
+    }
+
+    .app-pane {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      background: var(--surface);
+      border-radius: 0 var(--radius) var(--radius) var(--radius);
+      box-shadow: var(--shadow-md);
+      border: 1px solid var(--border);
+      border-top: none;
+      overflow: hidden;
+      min-height: 420px;
+    }
+
+    /* ── Tools pane ───────────────────────────── */
+    .pane-inner {
+      padding: 16px 18px 18px;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      gap: 14px;
+    }
+
+    .tool-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+
+    .tool-btn {
+      margin: 0;
+      padding: 9px 8px;
+      font-size: 12px;
+      font-weight: 600;
+      font-family: inherit;
+      color: var(--text);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s, transform 0.1s;
+    }
+
+    .tool-btn:hover {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+      color: var(--accent-hover);
+    }
+
+    .tool-btn:active { transform: scale(0.98); }
+
+    .tool-btn-feature {
+      grid-column: 1 / -1;
+      background: linear-gradient(135deg, var(--accent) 0%, #14b8a6 100%);
+      color: #fff;
+      border: none;
+      padding: 11px;
+      font-size: 13px;
+    }
+
+    .tool-btn-feature:hover { filter: brightness(1.06); color: #fff; }
+
+    #contentBox {
+      width: 100%;
+      flex: 1;
+      min-height: 260px;
+      padding: 13px 14px;
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.55;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      resize: vertical;
+      outline: none;
+      background: #fafafa;
+      color: var(--text);
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    #contentBox:focus {
+      border-color: var(--accent);
+      box-shadow: var(--focus-md);
+      background: var(--surface);
+    }
+
+    #debugbox {
+      font-size: 11px;
+      color: var(--text-muted);
+      padding: 7px 10px;
+      background: var(--bg);
+      border-radius: var(--radius-sm);
+      border-left: 3px solid var(--accent);
+      min-height: 34px;
+      display: flex;
+      align-items: center;
+    }
+
+    /* ── TOTP pane ───────────────────────────── */
+    .totp-pane-body {
+      padding: 18px 22px 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 13px;
+      flex: 1;
+      overflow: auto;
+      max-height: 480px;
+    }
+
+    /* 通用输入框 */
+    .totp-pane-body input[type="text"],
+    .totp-pane-body input[type="password"] {
+      font-family: inherit;
+      background: var(--surface);
+      color: var(--text);
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .totp-pane-body input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: var(--focus-sm);
+    }
+
+    /* 锁定卡片 */
+    .totp-lock-card {
+      max-width: 360px;
+      margin: 18px auto 24px;
+      text-align: center;
+    }
+
+    .totp-lock-card h2 {
+      margin: 0 0 8px;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+    }
+
+    .totp-lock-card .sub {
+      margin: 0 0 18px;
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    .totp-lock-card input[type="password"] {
+      width: 100%;
+      padding: 11px 14px;
+      font-size: 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      margin-bottom: 12px;
+    }
+
+    /* 通用按钮 */
+    .btn-primary {
+      width: 100%;
+      padding: 11px 16px;
+      font-size: 14px;
+      font-weight: 600;
+      font-family: inherit;
+      color: #fff;
+      background: var(--accent);
+      border: none;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+    }
+
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-primary:active { transform: scale(0.99); }
+
+    .btn-ghost {
+      padding: 7px 13px;
+      font-size: 12px;
+      font-weight: 600;
+      font-family: inherit;
+      color: var(--text-muted);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+
+    .btn-ghost:hover {
+      border-color: var(--accent);
+      color: var(--accent-hover);
+      background: var(--accent-soft);
+    }
+
+    .btn-ghost.btn-ghost-exit:hover {
+      border-color: var(--danger-border);
+      color: var(--danger);
+      background: var(--danger-soft);
+    }
+
+    .totp-lock-err {
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--danger);
+      text-align: left;
+    }
+
+    /* 工具栏 */
+    .totp-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .totp-toolbar-grow { flex: 1; min-width: 0; }
+
+    #totp-session-hint {
+      font-size: 12px;
+      color: var(--accent-hover);
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    #totp-session-hint[hidden] { display: none !important; }
+
+    /* 说明文字 */
+    .totp-hint {
+      margin: 0;
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.65;
+    }
+
+    /* 添加行 */
+    .totp-add-row {
+      display: grid;
+      grid-template-columns: 1fr 1.3fr auto;
+      gap: 10px;
+      align-items: end;
+    }
+
+    @media (max-width: 640px) {
+      .totp-add-row { grid-template-columns: 1fr; }
+    }
+
+    .totp-add-row input {
+      padding: 9px 12px;
+      font-size: 13px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+    }
+
+    .totp-add-row .btn-primary {
+      width: auto;
+      padding: 9px 16px;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    /* 折叠区（批量导入 / 修改密码） */
+    .totp-batch,
+    .totp-pwd-change {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 11px 14px;
+      background: var(--surface);
+    }
+
+    .totp-batch--end { margin-top: 14px; }
+
+    .totp-pwd-change--end {
+      margin-top: 8px;
+      border-style: dashed;
+      background: var(--bg);
+    }
+
+    .totp-batch summary,
+    .totp-pwd-change summary {
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      list-style: none;
+      user-select: none;
+    }
+
+    .totp-pwd-change summary {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .totp-batch summary::-webkit-details-marker,
+    .totp-pwd-change summary::-webkit-details-marker { display: none; }
+
+    .totp-batch summary::before,
+    .totp-pwd-change summary::before {
+      content: "▸ ";
+      color: var(--text-muted);
+      font-style: normal;
+    }
+
+    .totp-batch[open] summary::before,
+    .totp-pwd-change[open] summary::before { content: "▾ "; }
+
+    .totp-batch[open] > summary { margin-bottom: 10px; }
+
+    .totp-pwd-change[open] > summary {
+      color: var(--text);
+      margin-bottom: 10px;
+    }
+
+    .totp-batch textarea {
+      display: block;
+      width: 100%;
+      padding: 11px 12px;
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.5;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      resize: vertical;
+      min-height: 84px;
+      background: #fafafa;
+      color: var(--text);
+    }
+
+    .totp-batch textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: var(--focus-sm);
+    }
+
+    .totp-batch-actions {
+      margin-top: 10px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .totp-batch-actions .btn-primary {
+      width: auto;
+      padding: 7px 16px;
+      font-size: 13px;
+    }
+
+    #totp-batch-result { font-size: 12px; color: var(--text-muted); }
+
+    .totp-pwd-grid { display: grid; gap: 8px; }
+
+    .totp-pwd-grid input[type="password"] {
+      width: 100%;
+      padding: 8px 11px;
+      font-size: 13px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+    }
+
+    .totp-pwd-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 4px;
+    }
+
+    .totp-pwd-actions .btn-primary { width: auto; padding: 7px 16px; font-size: 13px; }
+
+    #totp-pwd-msg { font-size: 12px; margin: 0; flex: 1; min-width: 120px; }
+    #totp-pwd-msg.is-ok { color: var(--accent-hover); }
+    #totp-pwd-msg.is-err { color: var(--danger); }
+
+    /* ── 帐号列表 ─────────────────────────────── */
+    .totp-list { display: flex; flex-direction: column; gap: 7px; margin-top: 10px;}
+
+    .totp-row {
+      display: flex;
+      flex-direction: column;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      overflow: hidden;
+    }
+
+    .totp-row:hover { border-color: var(--tint-ring); }
+
+    .totp-row.is-selected {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.13);
+    }
+
+    .totp-row-main {
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) auto auto auto auto auto;
+      gap: 10px;
+      align-items: center;
+      padding: 11px 14px;
+    }
+
+    .totp-row-idblock { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+
+    .totp-row-name {
+      font-weight: 600;
+      font-size: 13px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      cursor: text;
+    }
+
+    .totp-row-name-input {
+      font: inherit;
+      font-weight: 600;
+      font-size: 13px;
+      width: 100%;
+      min-width: 0;
+      padding: 3px 8px;
+      margin: -3px 0;
+      border: 1px solid var(--accent);
+      border-radius: 6px;
+      background: var(--surface);
+      color: var(--text);
+    }
+
+    .totp-row-name-input:focus {
+      outline: none;
+      box-shadow: var(--focus-sm);
+    }
+
+    .totp-row-issuer {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .totp-row-track { height: 3px; background: var(--border); flex-shrink: 0; }
+
+    .totp-row-track-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--accent-soft), var(--accent));
+      transition: width 0.35s linear;
+    }
+
+    .totp-row-code {
+      font-family: var(--mono);
+      font-weight: 700;
+      font-size: 15px;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+      min-width: 7ch;
+      text-align: center;
+    }
+
+    .totp-row-sec {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      min-width: 2.2ch;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .totp-row button {
+      margin: 0;
+      padding: 5px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      font-family: inherit;
+      border-radius: 6px;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-muted);
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+
+    .totp-row button:hover {
+      background: var(--accent-soft);
+      border-color: var(--accent);
+      color: var(--accent-hover);
+    }
+
+    .totp-row button.totp-btn-danger {
+      border-color: transparent;
+      background: transparent;
+      color: #d4d4d8;
+    }
+
+    .totp-row button.totp-btn-danger:hover {
+      background: var(--danger-soft);
+      border-color: var(--danger-border);
+      color: var(--danger);
+    }
+
+    .totp-empty {
+      text-align: center;
+      padding: 36px 20px;
+      color: var(--text-muted);
+      font-size: 13px;
+      border: 1.5px dashed var(--tint-border);
+      border-radius: var(--radius-sm);
+    }
+
+    /* ── Scrollbar ───────────────────────────── */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-thumb { background: #d4d4d8; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #a1a1aa; }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <header class="app-header">
+      <div class="app-brand">
+        <strong>CCTools</strong>
+        <span>工具箱</span>
+      </div>
+      <a id="btn-ClearContent" class="link-quiet" href="#">清除编辑区</a>
+    </header>
+
+    <div id="smart-fill-bar" class="smart-fill-bar" hidden>
+      <div class="smart-fill-row">
+        <span class="smart-fill-badge">智能填充</span>
+        <div class="smart-fill-actions">
+          <div id="smart-fill-dropdown" class="sf-dropdown" hidden>
+            <button type="button" class="sf-trigger" id="smart-fill-trigger" aria-haspopup="listbox" aria-expanded="false">
+              <span class="sf-trigger-label" id="smart-fill-label">选择帐号</span>
+              <svg class="sf-caret" viewBox="0 0 10 6" width="10" height="6" fill="none" aria-hidden="true">
+                <path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            <ul class="sf-panel" id="smart-fill-panel" role="listbox" aria-label="选择验证码帐号"></ul>
+          </div>
+          <button type="button" id="smart-fill-btn" class="smart-fill-btn" hidden>填入验证码</button>
+          <button type="button" id="smart-fill-goto-totp" class="smart-fill-btn smart-fill-btn-ghost" hidden title="解锁保险箱或添加帐号">验证器</button>
+        </div>
+      </div>
+    </div>
+
+    <nav class="app-tabs" role="tablist">
+      <button type="button" class="app-tab is-active" role="tab" id="tab-tools" data-tab="tools" aria-selected="true" aria-controls="pane-tools">工具箱</button>
+      <button type="button" class="app-tab" role="tab" id="tab-totp" data-tab="totp" aria-selected="false" aria-controls="pane-totp">验证器</button>
+    </nav>
+
+    <div class="app-content">
+    <div id="pane-tools" class="app-pane" role="tabpanel" aria-labelledby="tab-tools" aria-hidden="false">
+      <div class="pane-inner">
+        <div class="tool-grid">
+          <button type="button" class="tool-btn" id="btn-formater">格式化</button>
+          <button type="button" class="tool-btn" id="btn-compress">压缩</button>
+          <button type="button" class="tool-btn" id="btn-md5">MD5</button>
+          <button type="button" class="tool-btn" id="btn-base64">Base64</button>
+          <button type="button" class="tool-btn" id="btn-urlencoder">URL</button>
+          <button type="button" class="tool-btn" id="btn-timestamp">时间戳</button>
+          <button type="button" class="tool-btn" id="btn-password">随机密码</button>
+          <button type="button" class="tool-btn" id="btn-getCSS">获取 CSS</button>
+          <button type="button" class="tool-btn tool-btn-feature" id="btn-deepseek-address">智能整理地址</button>
+        </div>
+        <textarea id="contentBox" placeholder="在此粘贴或编辑文本…"></textarea>
+        <div id="debugbox">就绪</div>
+      </div>
+    </div>
+
+    <div id="pane-totp" class="app-pane" role="tabpanel" aria-labelledby="tab-totp" aria-hidden="true" hidden>
+      <div class="totp-pane-body">
+        <div id="totp-lock">
+          <div class="totp-lock-card">
+            <h2>验证器保险箱</h2>
+            <p class="sub">本地加密存储。解锁后约 <strong>3 小时</strong>免再次输入；点「退出保险箱」立即清除会话。</p>
+            <input type="password" id="totp-master-pwd" autocomplete="current-password" placeholder="管理密码（未设置过可留空）">
+            <button type="button" class="btn-primary" id="totp-unlock-btn">解锁</button>
+            <div id="totp-unlock-err" class="totp-lock-err" aria-live="polite"></div>
+          </div>
+        </div>
+
+        <div id="totp-main" hidden>
+          <div class="totp-toolbar">
+            <div class="totp-toolbar-grow">
+              <span id="totp-session-hint" hidden></span>
+            </div>
+            <button type="button" class="btn-ghost btn-ghost-exit" id="totp-lock-session-btn">退出保险箱</button>
+          </div>
+          <p class="totp-hint">添加 Base32、<code>otpauth://</code> 或迁移链接。双击名称可改名。</p>
+          <div class="totp-add-row">
+            <input type="text" id="totp-add-name" placeholder="名称（可选）" autocomplete="off">
+            <input type="text" id="totp-add-secret" placeholder="密钥 / otpauth 链接 / migration 链接" autocomplete="off" spellcheck="false">
+            <button type="button" class="btn-primary" id="totp-add-btn">添加</button>
+          </div>
+          <div id="totp-list" class="totp-list"></div>
+          <details class="totp-batch totp-batch--end">
+            <summary>批量导入</summary>
+            <textarea id="totp-batch-text" placeholder="多行 otpauth://totp/… 或整段 otpauth-migration://offline?data=…" spellcheck="false"></textarea>
+            <div class="totp-batch-actions">
+              <button type="button" class="btn-primary" id="totp-batch-import">导入</button>
+              <span id="totp-batch-result"></span>
+            </div>
+          </details>
+          <details class="totp-pwd-change totp-pwd-change--end" id="totp-pwd-change-wrap">
+            <summary>修改管理密码</summary>
+            <div class="totp-pwd-grid">
+              <input type="password" id="totp-pwd-current" autocomplete="current-password" placeholder="当前密码（未改过可留空）">
+              <input type="password" id="totp-pwd-new" autocomplete="new-password" placeholder="新密码（至少 6 位）">
+              <input type="password" id="totp-pwd-new2" autocomplete="new-password" placeholder="确认新密码">
+              <div class="totp-pwd-actions">
+                <button type="button" class="btn-primary" id="totp-pwd-save">保存新密码</button>
+                <p id="totp-pwd-msg" aria-live="polite"></p>
+              </div>
+            </div>
+          </details>
+        </div>
+      </div>
+    </div>
+    </div>
+  </div>
+
+  <script src="jquery-3.7.1.slim.min.js"></script>
+  <script src="jquery.format.js"></script>
+  <script src="md5.min.js"></script>
+  <script src="uuid.min.js"></script>
+  <script src="totp.js"></script>
+  <script src="totp-crypto.js"></script>
+  <script src="popup.js"></script>
+  <script src="getcss.js"></script>
+</body>
+
+</html>
