@@ -4,6 +4,56 @@ function debugMsg(str) {
     }
     $("#debugbox").html(str);
 }
+
+function hasChromeStorage() {
+    return (
+        typeof chrome !== 'undefined' &&
+        chrome &&
+        chrome.storage &&
+        chrome.storage.local &&
+        typeof chrome.storage.local.get === 'function' &&
+        typeof chrome.storage.local.set === 'function'
+    );
+}
+
+function hasChromeTabsAndScripting() {
+    return (
+        typeof chrome !== 'undefined' &&
+        chrome &&
+        chrome.tabs &&
+        typeof chrome.tabs.query === 'function' &&
+        chrome.scripting &&
+        typeof chrome.scripting.executeScript === 'function'
+    );
+}
+
+function storageGet(keys) {
+    if (hasChromeStorage()) {
+        return new Promise((resolve) => chrome.storage.local.get(keys, resolve));
+    }
+    const out = {};
+    (Array.isArray(keys) ? keys : Object.keys(keys || {})).forEach((k) => {
+        const v = localStorage.getItem(String(k));
+        if (v != null) out[k] = v;
+    });
+    return Promise.resolve(out);
+}
+
+function storageSet(obj) {
+    if (hasChromeStorage()) {
+        return new Promise((resolve) => chrome.storage.local.set(obj, resolve));
+    }
+    Object.entries(obj || {}).forEach(([k, v]) => localStorage.setItem(String(k), String(v ?? '')));
+    return Promise.resolve();
+}
+
+function storageRemove(keys) {
+    if (hasChromeStorage()) {
+        return new Promise((resolve) => chrome.storage.local.remove(keys, resolve));
+    }
+    (Array.isArray(keys) ? keys : [keys]).forEach((k) => localStorage.removeItem(String(k)));
+    return Promise.resolve();
+}
 function __loadJS(src, callback) {
     var script = document.createElement('script');
     script.src = src;
@@ -16,40 +66,41 @@ function __loadJS(src, callback) {
 // 页面加载时恢复上一次的内容
 document.addEventListener('DOMContentLoaded', () => {
     const contentBox = document.getElementById("contentBox");
-    // 从本地存储中恢复内容
-    chrome.storage.local.get(['savedContent'], (result) => {
-        if (result.savedContent) {
-            contentBox.value = result.savedContent;
-        }
+    // 从本地存储中恢复内容（扩展环境用 chrome.storage；本地预览用 localStorage）
+    storageGet(['savedContent']).then((result) => {
+        if (result && result.savedContent) contentBox.value = result.savedContent;
     });
     // 添加输入事件监听器，实时保存内容
     contentBox.addEventListener('input', () => {
-        chrome.storage.local.set({
-            savedContent: contentBox.value
-        });
+        void storageSet({ savedContent: contentBox.value });
     });
     // 添加清空按钮功能
     const clearBtn = document.getElementById('btn-ClearContent');
     if (clearBtn) {
         clearBtn.addEventListener('click', () => {
             contentBox.value = '';
-            chrome.storage.local.remove('savedContent');
+            void storageRemove('savedContent');
         });
     }
 
     setupAutoCopy('#debugbox');
     setupAutoCopy('#contentBox');
 
+    // 非扩展环境：仅禁用需要 chrome.tabs / scripting 的能力（验证器可用 WebCrypto + localStorage 预览）
+    if (!hasChromeTabsAndScripting()) {
+        const btnGetCss = document.getElementById('btn-getCSS');
+        if (btnGetCss) btnGetCss.setAttribute('disabled', 'disabled');
+        const sfBar = document.getElementById('smart-fill-bar');
+        if (sfBar) sfBar.hidden = true;
+        const totpErr = document.getElementById('totp-unlock-err');
+        if (totpErr) {
+            totpErr.textContent = '提示：当前为 file:// 预览模式，智能填充/注入页面功能不可用；但验证器可用本地存储进行预览。';
+        }
+    }
 
 });
 
-
-document.getElementById("btn-ClearContent").addEventListener("click", () => {
-    const contentBox = document.getElementById("contentBox");
-    if (contentBox) {
-        contentBox.value = "";
-    }
-})
+// 清空按钮的逻辑已在 DOMContentLoaded 中绑定（避免重复绑定 / file:// 错误）
 
 // 检查文本内容
 function detectContentType(text) {
@@ -97,9 +148,7 @@ document.getElementById("btn-formater").addEventListener("click", () => {
         } else {
             $('#contentBox').format({ method: codeType });
         }
-        chrome.storage.local.set({
-            savedContent: $('#contentBox').val()
-        });
+        void storageSet({ savedContent: $('#contentBox').val() });
     } catch (e) {
         debugMsg(e);
     }
@@ -112,9 +161,7 @@ document.getElementById("btn-compress").addEventListener("click", () => {
     try {
         if (codeType == "") return;
         $('#contentBox').format({ method: codeType + "min" });
-        chrome.storage.local.set({
-            savedContent: $('#contentBox').val()
-        });
+        void storageSet({ savedContent: $('#contentBox').val() });
     } catch (e) {
         debugMsg(e);
     }
@@ -298,6 +345,10 @@ document.getElementById("btn-md5").addEventListener("click", () => {
 })
 
 document.getElementById("btn-getCSS").addEventListener("click", () => {
+    if (!hasChromeTabsAndScripting()) {
+        alert('该功能需要在浏览器扩展环境运行（chrome.tabs / chrome.scripting）。');
+        return;
+    }
     // 发送消息到内容脚本获取 CSS
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         chrome.scripting.executeScript(
@@ -337,12 +388,12 @@ document.getElementById("btn-deepseek-address").addEventListener("click", async 
     }
 
     // Get API Key
-    chrome.storage.local.get(['deepseek_api_key'], async (result) => {
-        let apiKey = result.deepseek_api_key;
+    storageGet(['deepseek_api_key']).then(async (result) => {
+        let apiKey = result && result.deepseek_api_key;
         if (!apiKey) {
             apiKey = prompt("请输入您的 Deepseek API Key:");
             if (apiKey) {
-                chrome.storage.local.set({ deepseek_api_key: apiKey });
+                await storageSet({ deepseek_api_key: apiKey });
             } else {
                 debugMsg("未提供 API Key，取消操作");
                 return;
@@ -397,7 +448,7 @@ document.getElementById("btn-deepseek-address").addEventListener("click", async 
 
             // Update content box
             contentBox.value = content;
-            chrome.storage.local.set({ savedContent: content });
+            await storageSet({ savedContent: content });
             tokens = data.usage.total_tokens;
             debugMsg("地址整理完成！tokens = " + tokens);
             // 自动选中
@@ -408,7 +459,7 @@ document.getElementById("btn-deepseek-address").addEventListener("click", async 
             debugMsg("整理失败: " + error.message);
             // If 401, maybe clear key
             if (error.message.includes('401')) {
-                chrome.storage.local.remove('deepseek_api_key');
+                await storageRemove('deepseek_api_key');
                 alert("API Key 无效，请重新尝试");
             }
         }
@@ -463,20 +514,18 @@ async function persistTotpVault() {
     }
     const pack = await TOTPCrypto.encryptWithKey(totpSessionCryptoKey, JSON.stringify(totpAccounts));
     const vault = { v: 1, salt: totpVaultSaltB64, iv: pack.iv, ct: pack.ct };
-    await new Promise((resolve, reject) => {
-        chrome.storage.local.set({ [TOTP_VAULT_KEY]: vault }, () => {
-            if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
-            else resolve();
-        });
-    });
+    await storageSet({ [TOTP_VAULT_KEY]: JSON.stringify(vault) });
 }
 
 async function tryUnlockFromSession() {
     if (totpSessionCryptoKey != null && totpVaultSaltB64 != null) {
         return true;
     }
-    const local = await new Promise((resolve) => chrome.storage.local.get([TOTP_VAULT_KEY], resolve));
-    const vault = local[TOTP_VAULT_KEY];
+    const local = await storageGet([TOTP_VAULT_KEY]);
+    let vault = local[TOTP_VAULT_KEY];
+    if (typeof vault === 'string') {
+        try { vault = JSON.parse(vault); } catch { vault = null; }
+    }
     if (!vault || !vault.salt || !vault.iv || !vault.ct) return false;
     const key =
         (await TOTPCrypto.tryImportPersistentSessionKey()) ||
@@ -503,11 +552,15 @@ async function tryUnlockFromSession() {
 
 async function unlockWithPassword(password) {
     const pwd = effectiveTotpMasterPassword(password);
-    const local = await new Promise((resolve) =>
-        chrome.storage.local.get([TOTP_VAULT_KEY, TOTP_LEGACY_KEY], resolve)
-    );
-    const vault = local[TOTP_VAULT_KEY];
-    const legacy = local[TOTP_LEGACY_KEY];
+    const local = await storageGet([TOTP_VAULT_KEY, TOTP_LEGACY_KEY]);
+    let vault = local[TOTP_VAULT_KEY];
+    if (typeof vault === 'string') {
+        try { vault = JSON.parse(vault); } catch { vault = null; }
+    }
+    let legacy = local[TOTP_LEGACY_KEY];
+    if (typeof legacy === 'string') {
+        try { legacy = JSON.parse(legacy); } catch { legacy = null; }
+    }
 
     if (vault && vault.salt && vault.iv && vault.ct) {
         let result;
@@ -534,7 +587,7 @@ async function unlockWithPassword(password) {
         if (Array.isArray(legacy)) {
             totpAccounts = legacy;
             await persistTotpVault();
-            await new Promise((resolve) => chrome.storage.local.remove(TOTP_LEGACY_KEY, resolve));
+            await storageRemove(TOTP_LEGACY_KEY);
         } else {
             totpAccounts = [];
             await persistTotpVault();
@@ -558,8 +611,11 @@ async function changeTotpMasterPassword(currentRaw, newRaw, confirmRaw) {
     if (newPwd !== confirm) {
         throw new Error('两次输入的新密码不一致');
     }
-    const local = await new Promise((resolve) => chrome.storage.local.get([TOTP_VAULT_KEY], resolve));
-    const vault = local[TOTP_VAULT_KEY];
+    const local = await storageGet([TOTP_VAULT_KEY]);
+    let vault = local[TOTP_VAULT_KEY];
+    if (typeof vault === 'string') {
+        try { vault = JSON.parse(vault); } catch { vault = null; }
+    }
     if (!vault || !vault.salt || !vault.iv || !vault.ct) {
         throw new Error('未找到保险箱数据');
     }
@@ -655,8 +711,8 @@ async function updateTotpSessionHint() {
         return;
     }
     const expKey = TOTPCrypto.PERSIST_UNLOCK_EXP || 'totpUnlockExpiresAt';
-    const r = await new Promise((res) => chrome.storage.local.get([expKey], res));
-    const exp = r[expKey];
+    const r = await storageGet([expKey]);
+    const exp = r[expKey] == null ? null : Number(r[expKey]);
     if (exp == null) {
         el.textContent = '';
         el.hidden = true;
@@ -948,6 +1004,7 @@ async function maybeRestoreTotpSessionForPopup() {
 }
 
 function updateSmartFillBar() {
+    if (!hasChromeTabsAndScripting()) return;
     const bar = document.getElementById('smart-fill-bar');
     if (!bar) return;
 
@@ -1191,6 +1248,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 void updateSmartFillBar();
             } catch (e) {
                 if (errEl) errEl.textContent = e.message || '解锁失败';
+            }
+        });
+    }
+    // 回车自动提交解锁（避免用户必须点按钮）
+    const pwdInput = document.getElementById('totp-master-pwd');
+    if (pwdInput && btnUnlock) {
+        pwdInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                btnUnlock.click();
             }
         });
     }

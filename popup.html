@@ -4,16 +4,19 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="CCTools：常用文本小工具 + 本地加密的 TOTP 验证器。">
   <title>CCTools</title>
   <style>
     :root {
       --bg: #f4f4f5;
       --surface: #ffffff;
       --text: #18181b;
-      --text-muted: #71717a;
+      /* 提升对比度（满足 4.5:1） */
+      --text-muted: #52525b;
       --border: #e4e4e7;
-      --accent: #0d9488;
-      --accent-hover: #0f766e;
+      /* 更深的 teal，tab / 细字也能过对比 */
+      --accent: #0f766e;
+      --accent-hover: #115e59;
       --accent-soft: #ccfbf1;
       --danger: #dc2626;
       --danger-soft: #fef2f2;
@@ -84,6 +87,9 @@
       padding: 5px 10px;
       border-radius: var(--radius-sm);
       transition: background 0.15s, color 0.15s;
+      border: none;
+      background: transparent;
+      cursor: pointer;
     }
 
     .link-quiet:hover { background: var(--bg); color: var(--text); }
@@ -325,7 +331,7 @@
     .app-tab:hover { color: var(--text); background: rgba(255,255,255,0.65); }
 
     .app-tab.is-active {
-      color: var(--accent);
+      color: var(--accent-hover);
       background: var(--surface);
       box-shadow: 0 -1px 0 var(--surface);
     }
@@ -393,15 +399,25 @@
     .tool-btn:active { transform: scale(0.98); }
 
     .tool-btn-feature {
-      grid-column: 1 / -1;
+      /* 与其它按钮同尺寸（不占整行） */
       background: linear-gradient(135deg, var(--accent) 0%, #14b8a6 100%);
       color: #fff;
       border: none;
-      padding: 11px;
-      font-size: 13px;
+      padding: 9px 8px;
+      font-size: 12px;
+      border-radius: var(--radius-sm);
+      box-shadow: 0 6px 14px rgba(15, 118, 110, 0.16);
+      transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
     }
 
-    .tool-btn-feature:hover { filter: brightness(1.06); color: #fff; }
+    .tool-btn-feature:hover {
+      filter: brightness(1.04) saturate(1.06);
+      transform: translateY(-1px);
+      box-shadow: 0 8px 18px rgba(15, 118, 110, 0.2);
+      color: #fff;
+    }
+    .tool-btn-feature:active { transform: translateY(0px) scale(0.99); }
+    .tool-btn-feature:focus { outline: none; box-shadow: var(--focus-md), 0 8px 18px rgba(15, 118, 110, 0.16); }
 
     #contentBox {
       width: 100%;
@@ -861,7 +877,7 @@
         <strong>CCTools</strong>
         <span>工具箱</span>
       </div>
-      <a id="btn-ClearContent" class="link-quiet" href="#">清除编辑区</a>
+      <button id="btn-ClearContent" class="link-quiet" type="button">清除编辑区</button>
     </header>
 
     <div id="smart-fill-bar" class="smart-fill-bar" hidden>
@@ -888,7 +904,7 @@
       <button type="button" class="app-tab" role="tab" id="tab-totp" data-tab="totp" aria-selected="false" aria-controls="pane-totp">验证器</button>
     </nav>
 
-    <div class="app-content">
+    <main class="app-content" role="main">
     <div id="pane-tools" class="app-pane" role="tabpanel" aria-labelledby="tab-tools" aria-hidden="false">
       <div class="pane-inner">
         <div class="tool-grid">
@@ -956,7 +972,7 @@
         </div>
       </div>
     </div>
-    </div>
+    </main>
   </div>
 
   <script src="jquery-3.7.1.slim.min.js"></script>

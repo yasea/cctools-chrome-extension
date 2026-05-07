@@ -7,6 +7,40 @@
   const IV_BYTES = 12;
   const AES_BITS = 256;
 
+  function hasChromeStorageArea(area) {
+    return (
+      typeof chrome !== 'undefined' &&
+      chrome &&
+      chrome.storage &&
+      area &&
+      typeof area.get === 'function' &&
+      typeof area.set === 'function' &&
+      typeof area.remove === 'function'
+    );
+  }
+
+  function localGet(keys) {
+    const out = {};
+    const arr = Array.isArray(keys) ? keys : Object.keys(keys || {});
+    for (const k of arr) {
+      const v = localStorage.getItem(String(k));
+      if (v != null) out[k] = v;
+    }
+    return out;
+  }
+
+  function localSet(obj) {
+    Object.entries(obj || {}).forEach(([k, v]) =>
+      localStorage.setItem(String(k), String(v ?? ''))
+    );
+  }
+
+  function localRemove(keys) {
+    (Array.isArray(keys) ? keys : [keys]).forEach((k) =>
+      localStorage.removeItem(String(k))
+    );
+  }
+
   function bufToB64(buf) {
     const u8 = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
     let s = '';
@@ -103,7 +137,36 @@
   const DEFAULT_TTL_MS = 3 * 60 * 60 * 1000;
 
   function sessionArea() {
-    return chrome.storage && chrome.storage.session ? chrome.storage.session : null;
+    if (
+      typeof chrome !== 'undefined' &&
+      chrome &&
+      chrome.storage &&
+      chrome.storage.session &&
+      hasChromeStorageArea(chrome.storage.session)
+    ) {
+      return chrome.storage.session;
+    }
+    // file:// 预览兜底：用内存 session（不持久化、刷新即失效）
+    const mem = (global.__cctoolsTotpSessionMem = global.__cctoolsTotpSessionMem || {});
+    return {
+      async get(key) {
+        if (Array.isArray(key)) {
+          const out = {};
+          key.forEach((k) => (out[k] = mem[k]));
+          return out;
+        }
+        if (typeof key === 'string') return { [key]: mem[key] };
+        const out = {};
+        Object.keys(key || {}).forEach((k) => (out[k] = mem[k]));
+        return out;
+      },
+      async set(obj) {
+        Object.assign(mem, obj || {});
+      },
+      async remove(keys) {
+        (Array.isArray(keys) ? keys : [keys]).forEach((k) => delete mem[k]);
+      },
+    };
   }
 
   async function cacheSessionKey(cryptoKey) {
@@ -118,10 +181,14 @@
     const ttl = ttlMs != null ? ttlMs : DEFAULT_TTL_MS;
     const b64 = await exportRawKeyB64(cryptoKey);
     const exp = Date.now() + ttl;
-    await chrome.storage.local.set({
-      [PERSIST_UNLOCK_KEY]: b64,
-      [PERSIST_UNLOCK_EXP]: exp,
-    });
+    if (typeof chrome !== 'undefined' && chrome && chrome.storage && chrome.storage.local && hasChromeStorageArea(chrome.storage.local)) {
+      await chrome.storage.local.set({
+        [PERSIST_UNLOCK_KEY]: b64,
+        [PERSIST_UNLOCK_EXP]: exp,
+      });
+    } else {
+      localSet({ [PERSIST_UNLOCK_KEY]: b64, [PERSIST_UNLOCK_EXP]: String(exp) });
+    }
     await cacheSessionKey(cryptoKey);
   }
 
@@ -132,7 +199,11 @@
   }
 
   async function clearPersistentUnlock() {
-    await chrome.storage.local.remove([PERSIST_UNLOCK_KEY, PERSIST_UNLOCK_EXP]);
+    if (typeof chrome !== 'undefined' && chrome && chrome.storage && chrome.storage.local && hasChromeStorageArea(chrome.storage.local)) {
+      await chrome.storage.local.remove([PERSIST_UNLOCK_KEY, PERSIST_UNLOCK_EXP]);
+    } else {
+      localRemove([PERSIST_UNLOCK_KEY, PERSIST_UNLOCK_EXP]);
+    }
   }
 
   async function clearAllUnlockSession() {
@@ -155,8 +226,14 @@
   }
 
   async function tryImportPersistentSessionKey() {
-    const r = await chrome.storage.local.get([PERSIST_UNLOCK_KEY, PERSIST_UNLOCK_EXP]);
-    const exp = r[PERSIST_UNLOCK_EXP];
+    let r;
+    if (typeof chrome !== 'undefined' && chrome && chrome.storage && chrome.storage.local && hasChromeStorageArea(chrome.storage.local)) {
+      r = await chrome.storage.local.get([PERSIST_UNLOCK_KEY, PERSIST_UNLOCK_EXP]);
+    } else {
+      r = localGet([PERSIST_UNLOCK_KEY, PERSIST_UNLOCK_EXP]);
+    }
+    const expRaw = r[PERSIST_UNLOCK_EXP];
+    const exp = expRaw == null ? null : Number(expRaw);
     const b64 = r[PERSIST_UNLOCK_KEY];
     if (!b64 || exp == null) return null;
     if (Date.now() > exp) {
