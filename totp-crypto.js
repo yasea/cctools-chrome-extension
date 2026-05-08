@@ -134,7 +134,7 @@
   /** 本地免密解锁（与保险箱 vault 分开存储） */
   const PERSIST_UNLOCK_KEY = 'totpUnlockKeyB64';
   const PERSIST_UNLOCK_EXP = 'totpUnlockExpiresAt';
-  const DEFAULT_TTL_MS = 3 * 60 * 60 * 1000;
+  const DEFAULT_TTL_MS = 24 * 60 * 60 * 1000;
 
   function sessionArea() {
     if (
@@ -176,7 +176,7 @@
     await area.set({ [SESSION_KEY]: b64 });
   }
 
-  /** 写入会话 + 本地 TTL（默认 3 小时），关闭浏览器后仍可免密至过期 */
+  /** 写入会话 + 本地 TTL（默认 1 天），关闭浏览器后仍可免密至过期 */
   async function cacheSessionKeyWithTTL(cryptoKey, ttlMs) {
     const ttl = ttlMs != null ? ttlMs : DEFAULT_TTL_MS;
     const b64 = await exportRawKeyB64(cryptoKey);

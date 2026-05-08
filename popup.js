@@ -486,6 +486,19 @@ let smartFillSelectedId = null;
 let totpSessionCryptoKey = null;
 /** @type {string | null} */
 let totpVaultSaltB64 = null;
+let smartFillAutoRoutedToUnlock = false;
+
+function routeToTotpUnlockWithHint(msg) {
+    const t = document.getElementById('tab-totp');
+    if (t) t.click();
+    const errEl = document.getElementById('totp-unlock-err');
+    if (errEl) errEl.textContent = msg || '检测到验证码输入框，请先解锁验证器。';
+    const pwdEl = document.getElementById('totp-master-pwd');
+    if (pwdEl) {
+        pwdEl.focus();
+        pwdEl.select();
+    }
+}
 
 function stopTotpTicker() {
     if (totpTick) {
@@ -594,7 +607,7 @@ async function unlockWithPassword(password) {
         }
     }
 
-    await TOTPCrypto.cacheSessionKeyWithTTL(totpSessionCryptoKey, 3 * 60 * 60 * 1000);
+    await TOTPCrypto.cacheSessionKeyWithTTL(totpSessionCryptoKey, 24 * 60 * 60 * 1000);
 }
 
 const TOTP_NEW_PWD_MIN_LEN = 6;
@@ -630,7 +643,7 @@ async function changeTotpMasterPassword(currentRaw, newRaw, confirmRaw) {
     totpSessionCryptoKey = await TOTPCrypto.deriveKeyFromPassword(newPwd, saltBytes);
     totpVaultSaltB64 = saltB64;
     await persistTotpVault();
-    await TOTPCrypto.cacheSessionKeyWithTTL(totpSessionCryptoKey, 3 * 60 * 60 * 1000);
+    await TOTPCrypto.cacheSessionKeyWithTTL(totpSessionCryptoKey, 24 * 60 * 60 * 1000);
 }
 
 async function lockTotpSession() {
@@ -1038,6 +1051,10 @@ function updateSmartFillBar() {
                     gotoBtn.hidden = false;
                     gotoBtn.title = '前往验证器解锁保险箱';
                 }
+                if (!smartFillAutoRoutedToUnlock) {
+                    smartFillAutoRoutedToUnlock = true;
+                    routeToTotpUnlockWithHint('检测到验证码输入框：免密未开启或已过期，请输入管理密码解锁。');
+                }
                 return;
             }
 
@@ -1129,8 +1146,9 @@ function closeSfDropdown() {
     if (t) t.setAttribute('aria-expanded', 'false');
 }
 
-function fillOtpInActiveTab(code) {
+function fillOtpInActiveTab(code, opts) {
     const c = String(code);
+    const closeOnSuccess = !opts || opts.closeOnSuccess !== false;
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         const tabId = tabs[0] && tabs[0].id;
         if (tabId == null) {
@@ -1171,6 +1189,7 @@ function fillOtpInActiveTab(code) {
                     const ok = results && results.some((r) => r && r.result && r.result.ok);
                     if (ok) {
                         debugMsg('已填入验证码');
+                        if (closeOnSuccess) window.close();
                         return;
                     }
                     const errObj =
@@ -1192,6 +1211,7 @@ function isTotpPaneVisible() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    smartFillAutoRoutedToUnlock = false;
     const paneTools = document.getElementById('pane-tools');
     const paneTotp = document.getElementById('pane-totp');
     document.querySelectorAll('.app-tab').forEach((tab) => {
@@ -1497,6 +1517,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 ev.stopPropagation();
                 if (!totpSessionCryptoKey) return;
                 const id = del.getAttribute('data-id');
+                const acc = getTotpAccountById(id);
+                const label = acc ? totpAccountOptionLabel(acc) : '该帐号';
+                if (!confirm(`确认删除：${label}？此操作不可撤销。`)) return;
                 totpAccounts = totpAccounts.filter((a) => a.id !== id);
                 if (selectedTotpId === id) selectedTotpId = null;
                 try {
@@ -1527,7 +1550,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     debugMsg('无法生成验证码');
                     return;
                 }
-                fillOtpInActiveTab(code);
+                fillOtpInActiveTab(code, { closeOnSuccess: true });
                 return;
             }
             if (row && row.getAttribute('data-id')) {
@@ -1604,7 +1627,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert('无法生成验证码');
                 return;
             }
-            fillOtpInActiveTab(code);
+            fillOtpInActiveTab(code, { closeOnSuccess: true });
         });
     }
 
